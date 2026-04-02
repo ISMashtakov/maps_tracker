@@ -24,6 +24,10 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Хотелось бы знать вашу позицию, чтобы проверять, а не дошли ли Вы, случаем, до точки.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Хотелось бы знать вашу позицию даже в фоне, чтобы проверять, а не дошли ли Вы, случаем, до точки.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
