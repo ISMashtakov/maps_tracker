@@ -1,15 +1,13 @@
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/adventure.dart';
+import '../services/adventure_repository.dart';
 import 'tracker_map_view.dart';
 
 const String _duplicateFileMessage = 'Файл уже загружен';
 const String _invalidFileMessage = 'Некорректный файл приключения';
-const String _errorLoadMessage = 'Ошибка загрузки файла: ';
 const String _noAdventuresMessage = 'Нет загруженных приключений';
 const String _loadLevelButtonText = 'Загрузка уровня';
 const String _mainMenuTitle = 'Главное меню';
@@ -22,90 +20,48 @@ class MainMenuScreen extends StatefulWidget {
 }
 
 class _MainMenuScreenState extends State<MainMenuScreen> {
+  final AdventureRepository _repository = AdventureRepository();
   List<Adventure> _adventures = [];
 
   @override
   void initState() {
     super.initState();
-    _loadSavedPaths();
+    _loadAdventures();
   }
 
-  Future<void> _loadSavedPaths() async {
-    final prefs = await SharedPreferences.getInstance();
-    final paths = prefs.getStringList('adventure_paths') ?? [];
-
-    final validAdventures = <Adventure>[];
-    for (final path in paths) {
-      final file = File(path);
-      if (await file.exists()) {
-        final adventure = Adventure.fromFile(file);
-        if (adventure != null) {
-          validAdventures.add(adventure);
-        }
-      }
-    }
-
-    final validPaths = validAdventures.map((a) => a.filePath).toList();
-    if (validPaths.length != paths.length) {
-      await prefs.setStringList('adventure_paths', validPaths);
-    }
-
+  Future<void> _loadAdventures() async {
+    final adventures = await _repository.loadAdventures();
     setState(() {
-      _adventures = validAdventures;
+      _adventures = adventures;
     });
   }
 
-  Future<void> _savePaths() async {
-    final prefs = await SharedPreferences.getInstance();
-    final paths = _adventures.map((a) => a.filePath).toList();
-    await prefs.setStringList('adventure_paths', paths);
-  }
-
   Future<void> _loadLevel() async {
-    try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.any,
-        allowMultiple: false,
-      );
+    final result = await _repository.pickAndLoadAdventure(_adventures);
 
-      if (result != null && result.files.single.path != null) {
-        final newPath = result.files.single.path!;
-        final newFile = File(newPath);
-
-        final newAdventure = Adventure.fromFile(newFile);
-        if (newAdventure == null) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text(_invalidFileMessage)),
-            );
-          }
-          return;
-        }
-
-        final isDuplicate = _adventures.any((adventure) {
-          return adventure.name == newAdventure.name;
-        });
-
-        if (isDuplicate) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text(_duplicateFileMessage)),
-            );
-          }
-          return;
-        }
-
-        setState(() {
-          _adventures.add(newAdventure);
-        });
-        await _savePaths();
-      }
-    } catch (e) {
+    if (result.isDuplicate) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$_errorLoadMessage$e')),
+          const SnackBar(content: Text(_duplicateFileMessage)),
         );
       }
+      return;
+    }
+
+    if (result.isError) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text(_invalidFileMessage)),
+        );
+      }
+      return;
+    }
+
+    if (result.adventure != null) {
+      setState(() {
+        _adventures.add(result.adventure!);
+      });
+      await _repository.saveAdventures(_adventures);
     }
   }
 
@@ -113,7 +69,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
     setState(() {
       _adventures.removeAt(index);
     });
-    await _savePaths();
+    await _repository.saveAdventures(_adventures);
   }
 
   @override
