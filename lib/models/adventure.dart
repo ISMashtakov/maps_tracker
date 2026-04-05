@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:xml/xml.dart';
+import 'package:yaml/yaml.dart';
 
 class Adventure {
   final String filePath;
@@ -13,21 +13,25 @@ class Adventure {
   static Adventure? fromFile(File file) {
     try {
       final content = file.readAsStringSync();
-      final document = XmlDocument.parse(content);
-      final questElement = document.getElement('quest');
+      final yamlDoc = loadYaml(content);
 
-      if (questElement == null) {
+      if (yamlDoc is! YamlMap) {
         return null;
       }
 
-      final nameElement = questElement.getElement('name');
-      if (nameElement == null || nameElement.innerText.trim().isEmpty) {
+      final quest = yamlDoc['quest'];
+      if (quest is! YamlMap) {
+        return null;
+      }
+
+      final name = quest['name'];
+      if (name is! String || name.trim().isEmpty) {
         return null;
       }
 
       return Adventure(
         filePath: file.path,
-        name: nameElement.innerText.trim(),
+        name: name.trim(),
       );
     } catch (e) {
       return null;
