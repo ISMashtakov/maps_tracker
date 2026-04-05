@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 
 import '../models/adventure.dart';
@@ -114,7 +112,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                                           context,
                                           MaterialPageRoute(
                                             builder: (context) => TrackerMapView(
-                                              adventureFile: File(_adventures[index].filePath),
+                                              adventure: _adventures[index],
                                             ),
                                           ),
                                         );
