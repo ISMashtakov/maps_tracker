@@ -1,2 +1,10 @@
+version: "1.0.0"
 quest:
     name: Пример файла с приключением
+    stages: 
+        name: Тестовая точка
+        type: text
+        distance: 10
+        target: 56.320909, 43.947136
+        params: 
+            message: "Девочка на шаре"
