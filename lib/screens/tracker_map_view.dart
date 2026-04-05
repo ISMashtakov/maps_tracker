@@ -11,6 +11,10 @@ import '../models/adventure.dart';
 const String _defaultStageName = 'Этап';
 const String _hideButtonText = 'Скрыть';
 const String _showButtonText = 'Показать';
+const String _congratulationsTitle = 'Поздравляем!';
+const String _congratulationsMessage = 'Вы достигли цели!';
+const String _okButtonText = 'ОК';
+const String _metersUnit = 'м';
 
 class TrackerMapView extends StatefulWidget {
   final Adventure? adventure;
@@ -26,6 +30,7 @@ class _TrackerMapViewState extends State<TrackerMapView> {
   LatLng? _userPosition;
   StreamSubscription<Position>? _positionStream;
   bool _isTaskVisible = true;
+  double _distanceToTarget = 0.0;
 
   @override
   void initState() {
@@ -53,6 +58,13 @@ class _TrackerMapViewState extends State<TrackerMapView> {
         final firstStage = widget.adventure!.stages.first;
         final targetPosition = LatLng(firstStage.targetLat, firstStage.targetLng);
         _mapController.move(targetPosition, 15.0);
+        
+        _distanceToTarget = Geolocator.distanceBetween(
+          position.latitude,
+          position.longitude,
+          firstStage.targetLat,
+          firstStage.targetLng,
+        );
       } else {
         _mapController.move(_userPosition!, 15.0);
       }
@@ -60,14 +72,52 @@ class _TrackerMapViewState extends State<TrackerMapView> {
       _positionStream = Geolocator.getPositionStream(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
-          distanceFilter: 10,
+          distanceFilter: 1,
         ),
       ).listen((position) {
         setState(() {
           _userPosition = LatLng(position.latitude, position.longitude);
+          
+          if (widget.adventure != null && widget.adventure!.stages.isNotEmpty) {
+            final currentStage = widget.adventure!.stages.first;
+            _distanceToTarget = Geolocator.distanceBetween(
+              position.latitude,
+              position.longitude,
+              currentStage.targetLat,
+              currentStage.targetLng,
+            );
+            
+            if (_distanceToTarget <= currentStage.distance) {
+              _showCongratulationsDialog();
+            }
+          }
         });
       });
     }
+  }
+
+  void _showCongratulationsDialog() {
+    _positionStream?.pause();
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text(_congratulationsTitle),
+        content: const Text(_congratulationsMessage),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).pop();
+            },
+            child: const Text(_okButtonText),
+          ),
+        ],
+      ),
+    ).then((_) {
+      _positionStream?.resume();
+    });
   }
 
   void _centerOnUser() {
@@ -90,6 +140,7 @@ class _TrackerMapViewState extends State<TrackerMapView> {
 
     final stageName = currentStage?.name ?? _defaultStageName;
     final taskMessage = currentStage?.type == 'text' ? currentStage?.params.message : null;
+    final distanceText = _distanceToTarget.toStringAsFixed(0);
 
     return Scaffold(
       body: Stack(
@@ -113,19 +164,6 @@ class _TrackerMapViewState extends State<TrackerMapView> {
                       child: const Icon(
                         Icons.location_on,
                         color: Colors.red,
-                        size: 40.0,
-                      ),
-                    ),
-                  ],
-                ),
-              if (currentStage != null)
-                MarkerLayer(
-                  markers: [
-                    Marker(
-                      point: LatLng(currentStage.targetLat, currentStage.targetLng),
-                      child: const Icon(
-                        Icons.flag,
-                        color: Colors.blue,
                         size: 40.0,
                       ),
                     ),
@@ -178,6 +216,14 @@ class _TrackerMapViewState extends State<TrackerMapView> {
                       child: Text(_isTaskVisible ? _hideButtonText : _showButtonText),
                     ),
                   ],
+                  const SizedBox(height: 8.0),
+                  Text(
+                    '$distanceText $_metersUnit',
+                    style: const TextStyle(
+                      fontSize: 16.0,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
             ),
